@@ -1,12 +1,7 @@
 {
 	"root": true,
-	"extends": [
-		"xo/esnext",
-		"plugin:ava/recommended"
-	],
-	"plugins": [
-		"ava"
-	],
+	"extends": ["plugin:ava/recommended", "@gamesdonequick/eslint-config"],
+	"plugins": ["ava"],
 	"rules": {
 		"new-cap": [
 			2,
@@ -20,6 +15,7 @@
 					"window.dashboardApi.Replicant"
 				]
 			}
-		]
+		],
+		"valid-jsdoc": 0
 	}
 }

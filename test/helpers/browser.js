@@ -3,31 +3,26 @@
 // Native
 import * as fs from 'fs';
 import * as path from 'path';
-import {v4 as uuid} from 'uuid';
+import { v4 as uuid } from 'uuid';
 
 // Packages
 import test from 'ava';
 import puppeteer from 'puppeteer';
+import isCi from 'is-ci';
 
 // Ours
 import * as C from './test-constants';
-import {sleep} from './utilities';
-
-const IS_TRAVIS = process.env.TRAVIS_OS_NAME && process.env.TRAVIS_JOB_NUMBER;
+import { sleep } from './utilities';
 
 export const setup = () => {
 	let browser;
 	test.serial.before(async () => {
-		// The --no-sandbox flag is required to run Headless Chrome on Travis
-		const args = IS_TRAVIS ? ['--no-sandbox'] : undefined;
+		// Getting the sandbox to work in CI is too hard for my tiny brain.
+		const args = isCi ? ['--no-sandbox', '--disable-setuid-sandbox'] : undefined;
 		browser = await puppeteer.launch({
 			headless: true,
-			args
+			args,
 		});
-	});
-
-	test.beforeEach(t => {
-		t.context.browser = browser;
 	});
 
 	test.after.always(async () => {
@@ -44,15 +39,11 @@ export const setup = () => {
 			let coverageObj;
 			try {
 				coverageObj = await page.evaluate(() => window.__coverage__);
-			} catch (err) {
+			} catch (_) {
 				continue;
 			}
 
-			if (
-				!coverageObj ||
-				typeof coverageObj !== 'object' ||
-				Object.keys(coverageObj).length === 0
-			) {
+			if (!coverageObj || typeof coverageObj !== 'object' || Object.keys(coverageObj).length === 0) {
 				continue;
 			}
 
@@ -63,15 +54,14 @@ export const setup = () => {
 				newCoverageObj[absKey] = coverageObj[key];
 			}
 
-			fs.writeFileSync(
-				`.nyc_output/browser-${uuid()}.json`,
-				JSON.stringify(newCoverageObj),
-				'utf8'
-			);
+			fs.writeFileSync(`.nyc_output/browser-${uuid()}.json`, JSON.stringify(newCoverageObj), 'utf8');
 		}
 		/* eslint-enable no-await-in-loop */
 
 		await browser.close();
+	});
+	test.beforeEach(t => {
+		t.context.browser = browser;
 	});
 
 	const initDashboard = async () => {
@@ -124,6 +114,6 @@ export const setup = () => {
 		initStandalone,
 		initGraphic,
 		initSingleInstance,
-		initLogin
+		initLogin,
 	};
 };

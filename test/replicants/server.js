@@ -12,7 +12,7 @@ import * as server from '../helpers/server';
 import * as browser from '../helpers/browser';
 
 server.setup();
-const {initDashboard} = browser.setup();
+const { initDashboard } = browser.setup();
 
 import * as C from '../helpers/test-constants';
 
@@ -28,15 +28,18 @@ test.serial('should return a reference to any already-declared replicant', t => 
 });
 
 test.serial('should only apply defaultValue when first declared', async t => {
-	await dashboard.evaluate(() => new Promise(done => {
-		const rep = window.dashboardApi.Replicant('extensionTest', {
-			defaultValue: 'foo',
-			persistent: false
-		});
-		rep.on('declared', done);
-	}));
+	await dashboard.evaluate(
+		() =>
+			new Promise(done => {
+				const rep = window.dashboardApi.Replicant('extensionTest', {
+					defaultValue: 'foo',
+					persistent: false,
+				});
+				rep.on('declared', done);
+			}),
+	);
 
-	const rep = t.context.apis.extension.Replicant('extensionTest', {defaultValue: 'bar'});
+	const rep = t.context.apis.extension.Replicant('extensionTest', { defaultValue: 'bar' });
 	t.is(rep.value, 'foo');
 });
 
@@ -69,7 +72,7 @@ test.serial('should not explode when schema is invalid', t => {
 });
 
 test.serial('should be assignable via the ".value" property', t => {
-	const rep = t.context.apis.extension.Replicant('extensionAssignmentTest', {persistent: false});
+	const rep = t.context.apis.extension.Replicant('extensionAssignmentTest', { persistent: false });
 	rep.value = 'assignmentOK';
 	t.is(rep.value, 'assignmentOK');
 });
@@ -79,7 +82,7 @@ test.serial.cb('should react to changes in nested properties of objects', t => {
 
 	const rep = t.context.apis.extension.Replicant('extensionObjTest', {
 		persistent: false,
-		defaultValue: {a: {b: {c: 'c'}}}
+		defaultValue: { a: { b: { c: 'c' } } },
 	});
 
 	rep.on('change', (newVal, oldVal, operations) => {
@@ -87,16 +90,25 @@ test.serial.cb('should react to changes in nested properties of objects', t => {
 			return;
 		}
 
-		t.deepEqual(oldVal, {a: {b: {c: 'c'}}});
-		t.deepEqual(newVal, {a: {b: {c: 'nestedChangeOK'}}});
-		t.deepEqual(operations, [{
-			args: {
-				newValue: 'nestedChangeOK',
-				prop: 'c'
+		t.deepEqual(oldVal, { a: { b: { c: 'c' } } });
+		t.deepEqual(newVal, { a: { b: { c: 'nestedChangeOK' } } });
+		t.deepEqual(operations, [
+			{
+				args: {
+					newValue: { a: { b: { c: 'c' } } },
+				},
+				method: 'overwrite',
+				path: '/',
 			},
-			method: 'update',
-			path: '/a/b'
-		}]);
+			{
+				args: {
+					newValue: 'nestedChangeOK',
+					prop: 'c',
+				},
+				method: 'update',
+				path: '/a/b',
+			},
+		]);
 		t.end();
 	});
 
@@ -104,10 +116,7 @@ test.serial.cb('should react to changes in nested properties of objects', t => {
 });
 
 test.serial('memoization', t => {
-	t.is(
-		t.context.apis.extension.Replicant('memoizationTest'),
-		t.context.apis.extension.Replicant('memoizationTest')
-	);
+	t.is(t.context.apis.extension.Replicant('memoizationTest'), t.context.apis.extension.Replicant('memoizationTest'));
 });
 
 test.serial.cb('should only apply array splices from the client once', t => {
@@ -115,16 +124,19 @@ test.serial.cb('should only apply array splices from the client once', t => {
 
 	const serverRep = t.context.apis.extension.Replicant('clientDoubleApplyTest', {
 		persistent: false,
-		defaultValue: []
+		defaultValue: [],
 	});
 
 	dashboard
-		.evaluate(() => new Promise(resolve => {
-			window.clientDoubleApplyTest = window.dashboardApi.Replicant('clientDoubleApplyTest');
-			window.clientDoubleApplyTest.on('declared', () => {
-				window.clientDoubleApplyTest.on('change', resolve);
-			});
-		}))
+		.evaluate(
+			() =>
+				new Promise(resolve => {
+					window.clientDoubleApplyTest = window.dashboardApi.Replicant('clientDoubleApplyTest');
+					window.clientDoubleApplyTest.on('declared', () => {
+						window.clientDoubleApplyTest.on('change', resolve);
+					});
+				}),
+		)
 		.then(() => {
 			serverRep.on('change', newVal => {
 				if (Array.isArray(newVal) && newVal[0] === 'test') {
@@ -138,7 +150,7 @@ test.serial.cb('should only apply array splices from the client once', t => {
 
 test.serial('should remove .once listeners when quickfired', t => {
 	const rep = t.context.apis.extension.Replicant('serverRemoveOnceListener', {
-		persistent: false
+		persistent: false,
 	});
 
 	rep.once('change', () => {});
@@ -147,7 +159,7 @@ test.serial('should remove .once listeners when quickfired', t => {
 
 test.serial('should not override/quickfire .once for events other than "change"', t => {
 	const rep = t.context.apis.extension.Replicant('serverNotOverrideOtherOnceListeners', {
-		persistent: false
+		persistent: false,
 	});
 
 	rep.once('declared', () => {
@@ -161,18 +173,27 @@ test.serial.cb('arrays - should support the "delete" operator', t => {
 
 	const rep = t.context.apis.extension.Replicant('serverArrayDelete', {
 		persistent: false,
-		defaultValue: ['foo', 'bar']
+		defaultValue: ['foo', 'bar'],
 	});
 
 	rep.on('change', (newVal, oldVal, operations) => {
-		if (operations && operations[0].method === 'delete') {
+		if (operations && operations[1].method === 'delete') {
 			t.deepEqual(newVal, [, 'bar']); // eslint-disable-line no-sparse-arrays
 			t.deepEqual(oldVal, ['foo', 'bar']);
-			t.deepEqual(operations, [{
-				args: {prop: '0'},
-				path: '/',
-				method: 'delete'
-			}]);
+			t.deepEqual(operations, [
+				{
+					path: '/',
+					method: 'overwrite',
+					args: {
+						newValue: ['foo', 'bar'],
+					},
+				},
+				{
+					args: { prop: '0' },
+					path: '/',
+					method: 'delete',
+				},
+			]);
 			t.end();
 		}
 	});
@@ -185,7 +206,7 @@ test.serial.cb('arrays - should react to changes', t => {
 
 	const rep = t.context.apis.extension.Replicant('extensionArrTest', {
 		persistent: false,
-		defaultValue: ['starting']
+		defaultValue: ['starting'],
 	});
 
 	rep.on('change', (newVal, oldVal, operations) => {
@@ -195,11 +216,20 @@ test.serial.cb('arrays - should react to changes', t => {
 
 		t.deepEqual(oldVal, ['starting']);
 		t.deepEqual(newVal, ['starting', 'arrPushOK']);
-		t.deepEqual(operations, [{
-			args: ['arrPushOK'],
-			method: 'push',
-			path: '/'
-		}]);
+		t.deepEqual(operations, [
+			{
+				args: {
+					newValue: ['starting'],
+				},
+				path: '/',
+				method: 'overwrite',
+			},
+			{
+				args: ['arrPushOK'],
+				method: 'push',
+				path: '/',
+			},
+		]);
 		t.end();
 	});
 
@@ -209,7 +239,7 @@ test.serial.cb('arrays - should react to changes', t => {
 test.serial('objects - throw an error when an object is owned by multiple Replicants', t => {
 	const rep1 = t.context.apis.extension.Replicant('multiOwner1');
 	const rep2 = t.context.apis.extension.Replicant('multiOwner2');
-	const bar = {bar: 'bar'};
+	const bar = { bar: 'bar' };
 	rep1.value = {};
 	rep2.value = {};
 	rep1.value.foo = bar;
@@ -224,21 +254,21 @@ test.serial('objects - throw an error when an object is owned by multiple Replic
 test.serial('dates - should not throw an error', t => {
 	t.notThrows(() => {
 		t.context.apis.extension.Replicant('extensionDateTest', {
-			defaultValue: new Date()
+			defaultValue: new Date(),
 		});
 	});
 });
 
 test.serial('persistent - should load persisted values when they exist', t => {
-	const rep = t.context.apis.extension.Replicant('extensionPersistence');
+	const rep = t.context.apis.extension.Replicant('extensionPersistence', { persistenceInterval: 0 });
 	t.is(rep.value, 'it work good!');
 });
 
 test.serial.cb('persistent - should persist assignment to disk', t => {
 	t.plan(1);
 
-	const rep = t.context.apis.extension.Replicant('extensionPersistence');
-	rep.value = {nested: 'hey we assigned!'};
+	const rep = t.context.apis.extension.Replicant('extensionPersistence', { persistenceInterval: 0 });
+	rep.value = { nested: 'hey we assigned!' };
 	setTimeout(() => {
 		const replicantPath = path.join(C.replicantsRoot(), 'test-bundle/extensionPersistence.rep');
 		fs.readFile(replicantPath, 'utf-8', (err, data) => {
@@ -255,7 +285,7 @@ test.serial.cb('persistent - should persist assignment to disk', t => {
 test.serial.cb('persistent - should persist changes to disk', t => {
 	t.plan(1);
 
-	const rep = t.context.apis.extension.Replicant('extensionPersistence');
+	const rep = t.context.apis.extension.Replicant('extensionPersistence', { persistenceInterval: 0 });
 	rep.value.nested = 'hey we changed!';
 	setTimeout(() => {
 		const replicantPath = path.join(C.replicantsRoot(), 'test-bundle/extensionPersistence.rep');
@@ -267,13 +297,53 @@ test.serial.cb('persistent - should persist changes to disk', t => {
 			t.is(data, '{"nested":"hey we changed!"}');
 			t.end();
 		});
+	}, 250); // Delay needs to be longer than the persistence interval.
+});
+
+test.serial.cb('persistent - should persist top-level string', t => {
+	t.plan(1);
+
+	const rep = t.context.apis.extension.Replicant('extensionPersistence', { persistenceInterval: 0 });
+	rep.value = 'lorem';
+
+	setTimeout(() => {
+		const replicantPath = path.join(C.replicantsRoot(), 'test-bundle/extensionPersistence.rep');
+
+		fs.readFile(replicantPath, 'utf-8', (err, data) => {
+			if (err) {
+				throw err;
+			}
+
+			t.is(data, '"lorem"');
+			t.end();
+		});
+	}, 10);
+});
+
+test.serial.cb('persistent - should persist top-level undefined', t => {
+	t.plan(1);
+
+	const rep = t.context.apis.extension.Replicant('extensionPersistence', { persistenceInterval: 0 });
+	rep.value = undefined;
+
+	setTimeout(() => {
+		const replicantPath = path.join(C.replicantsRoot(), 'test-bundle/extensionPersistence.rep');
+
+		fs.readFile(replicantPath, 'utf-8', (err, data) => {
+			if (err) {
+				throw err;
+			}
+
+			t.is(data, '');
+			t.end();
+		});
 	}, 10);
 });
 
 test.serial.cb('persistent - should persist falsey values to disk', t => {
 	t.plan(1);
 
-	const rep = t.context.apis.extension.Replicant('extensionFalseyWrite');
+	const rep = t.context.apis.extension.Replicant('extensionFalseyWrite', { persistenceInterval: 0 });
 	rep.value = 0;
 	setTimeout(() => {
 		const replicantPath = path.join(C.replicantsRoot(), 'test-bundle/extensionFalseyWrite.rep');
@@ -289,7 +359,7 @@ test.serial.cb('persistent - should persist falsey values to disk', t => {
 });
 
 test.serial('persistent - should read falsey values from disk', t => {
-	const rep = t.context.apis.extension.Replicant('extensionFalseyRead');
+	const rep = t.context.apis.extension.Replicant('extensionFalseyRead', { persistenceInterval: 0 });
 	t.is(rep.value, 0);
 });
 
@@ -303,7 +373,7 @@ test.serial.cb('transient - should not write their value to disk', t => {
 			throw err;
 		}
 
-		const rep = t.context.apis.extension.Replicant('extensionTransience', {persistent: false});
+		const rep = t.context.apis.extension.Replicant('extensionTransience', { persistent: false });
 		rep.value = 'o no';
 		fs.readFile(replicantPath, err => {
 			t.truthy(err);
@@ -314,19 +384,19 @@ test.serial.cb('transient - should not write their value to disk', t => {
 });
 
 test.serial('should return true when deleting a non-existing property', t => {
-	const rep = t.context.apis.extension.Replicant('serverDeleteNonExistent', {defaultValue: {}});
+	const rep = t.context.apis.extension.Replicant('serverDeleteNonExistent', { defaultValue: {} });
 	t.true(delete rep.value.nonExistent);
 });
 
-test.serial('test that one else path that\'s hard to hit', t => {
-	const rep = t.context.apis.extension.Replicant('arrayWithoutSchemaSetHandler', {defaultValue: []});
+test.serial("test that one else path that's hard to hit", t => {
+	const rep = t.context.apis.extension.Replicant('arrayWithoutSchemaSetHandler', { defaultValue: [] });
 	rep.value[0] = true;
 	t.pass();
 });
 
 test.serial('should leave the default value intact', t => {
-	const defaultValue = {lorem: 'ipsum'};
-	const rep = t.context.apis.extension.Replicant('defaultValueIntact', {defaultValue});
+	const defaultValue = { lorem: 'ipsum' };
+	const rep = t.context.apis.extension.Replicant('defaultValueIntact', { defaultValue });
 
 	t.is(rep.opts.defaultValue, defaultValue);
 	t.not(rep.value, defaultValue);
